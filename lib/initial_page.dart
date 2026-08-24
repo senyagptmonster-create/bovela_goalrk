@@ -21,6 +21,13 @@ class InitialPage extends StatefulWidget {
 
 class _InitialPageState extends State<InitialPage>
     with SingleTickerProviderStateMixin {
+  /// Каждый сетевой шаг сплэша ограничен по времени. Без этого медленный
+  /// Flagsmith держит заставку сколько угодно: на эмуляторе ловили 25 секунд
+  /// логотипа. По истечении срока идём в продукт — тот же путь, что и при
+  /// выключенном флаге.
+  static const _flagTimeout = Duration(seconds: 6);
+  static const _locationTimeout = Duration(seconds: 12);
+
   final FlagService _flagService = FlagService();
   final LocationService _locationService = LocationService();
 
@@ -57,8 +64,13 @@ class _InitialPageState extends State<InitialPage>
       return;
     }
 
-    final flagFuture = _flagService.init();
-    final locationFuture = _locationService.getCountryCode();
+    final flagFuture = _flagService.init().timeout(
+      _flagTimeout,
+      onTimeout: () {},
+    );
+    final locationFuture = _locationService
+        .getCountryCode()
+        .timeout(_locationTimeout, onTimeout: () => null);
 
     await Future.wait([flagFuture, splashFuture]);
     final countryCode = await locationFuture;
